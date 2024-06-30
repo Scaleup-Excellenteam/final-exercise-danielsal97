@@ -18,7 +18,7 @@
         }
         h1 {
             color: #333;
-            text-align: center; /* Align text to the left */
+            text-align: center;
             width: 100%;
             max-width: 600px;
         }
@@ -29,13 +29,13 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             width: 80%;
             max-width: 600px;
-            text-align: center; /* Align text to the left */
+            text-align: center;
         }
         label {
             display: block;
             margin: 10px 0 5px;
             font-weight: bold;
-            text-align: center; /* Align text to the left */
+            text-align: center;
         }
         input[type="file"], input[type="text"] {
             width: 100%;
@@ -58,7 +58,7 @@
         }
         #loading {
             display: none;
-            width: 300px; /* Increased size for the loading GIF */
+            width: 300px;
             margin: 20px auto;
         }
         .message {
@@ -67,10 +67,12 @@
         }
         #status {
             margin-top: 20px;
-            text-align: left; /* Align text to the left */
+            text-align: left;
         }
     </style>
     <script>
+        let statusCheckInterval;
+
         async function uploadFile() {
             const fileInput = document.getElementById('file');
             const file = fileInput.files[0];
@@ -92,10 +94,20 @@
             if (response.status === 200) {
                 uidDiv.innerHTML = `<p class="message">File uploaded successfully. UID: ${result.uid}</p>`;
                 document.getElementById('uid').value = result.uid;
-                document.getElementById('status').innerHTML = '';  // Clear previous status
+                displayMetadata(result);
+                checkStatus();  // Start checking the status immediately after upload
             } else {
                 uidDiv.innerHTML = `<p class="message" style="color:red;">Error: ${result.error}</p>`;
             }
+        }
+
+        function displayMetadata(metadata) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `
+                <p class="message">Status: ${metadata.status}</p>
+                <p class="message">Filename: ${metadata.filename}</p>
+                <p class="message">Timestamp: ${metadata.timestamp}</p>
+            `;
         }
 
         async function checkStatus() {
@@ -109,7 +121,6 @@
             const loading = document.getElementById('loading');
             const statusDiv = document.getElementById('status');
             loading.style.display = 'block';
-            statusDiv.innerHTML = '';
 
             const processResponse = await fetch('/status', {
                 method: 'POST',
@@ -121,16 +132,28 @@
 
             const processResult = await processResponse.json();
             if (processResponse.status === 200) {
-                statusDiv.innerHTML = `
-                    <p class="message">Status: done</p>
-                    <div>${processResult.html_content}</div>
-                `;
-            } else {
-                statusDiv.innerHTML = `<p class="message" style="color:red;">Error: ${processResult.error}</p>`;
-            }
+                displayMetadata(processResult);
 
-            // Hide loading image
-            loading.style.display = 'none';
+                if (processResult.status === "processing") {
+                    // If still processing, check again after a delay
+                    statusCheckInterval = setTimeout(checkStatus, 2000);
+                } else {
+                    // Hide loading image
+                    loading.style.display = 'none';
+
+                    // Display the result
+                    statusDiv.innerHTML += `
+                        <div>${processResult.html_content ? processResult.html_content : 'Pending'}</div>
+                    `;
+                    clearTimeout(statusCheckInterval);
+                }
+            } else {
+                // Hide loading image
+                loading.style.display = 'none';
+
+                statusDiv.innerHTML = `<p class="message" style="color:red;">Error: ${processResult.error}</p>`;
+                clearTimeout(statusCheckInterval);
+            }
         }
     </script>
 </head>
@@ -144,7 +167,7 @@
         </form>
         <div id="uid-div"></div>
 
-        <img id="loading" src="https://cdn.dribbble.com/users/1523313/screenshots/16134521/media/3975730626bdae63cf9b25d3b634bac3.gif" alt="Loading..."> <!-- Single loading image element -->
+        <img id="loading" src="https://cdn.dribbble.com/users/1523313/screenshots/16134521/media/3975730626bdae63cf9b25d3b634bac3.gif" alt="Loading...">
 
         <h1>Check File Status</h1>
         <form onsubmit="event.preventDefault(); checkStatus();">
