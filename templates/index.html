@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPTX Explainer via ChatGPT API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #333;
+            text-align: center; /* Align text to the left */
+            width: 100%;
+            max-width: 600px;
+        }
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+            text-align: center; /* Align text to the left */
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            text-align: center; /* Align text to the left */
+        }
+        input[type="file"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #loading {
+            display: none;
+            width: 300px; /* Increased size for the loading GIF */
+            margin: 20px auto;
+        }
+        .message {
+            margin: 15px 0;
+            color: #333;
+        }
+        #status {
+            margin-top: 20px;
+            text-align: left; /* Align text to the left */
+        }
+    </style>
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            const uidDiv = document.getElementById('uid-div');
+            if (response.status === 200) {
+                uidDiv.innerHTML = `<p class="message">File uploaded successfully. UID: ${result.uid}</p>`;
+                document.getElementById('uid').value = result.uid;
+                document.getElementById('status').innerHTML = '';  // Clear previous status
+            } else {
+                uidDiv.innerHTML = `<p class="message" style="color:red;">Error: ${result.error}</p>`;
+            }
+        }
+
+        async function checkStatus() {
+            const uid = document.getElementById('uid').value;
+            if (!uid) {
+                alert("Please enter a UID.");
+                return;
+            }
+
+            // Show loading image and clear previous results
+            const loading = document.getElementById('loading');
+            const statusDiv = document.getElementById('status');
+            loading.style.display = 'block';
+            statusDiv.innerHTML = '';
+
+            const processResponse = await fetch('/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ uid: uid })
+            });
+
+            const processResult = await processResponse.json();
+            if (processResponse.status === 200) {
+                statusDiv.innerHTML = `
+                    <p class="message">Status: done</p>
+                    <div>${processResult.html_content}</div>
+                `;
+            } else {
+                statusDiv.innerHTML = `<p class="message" style="color:red;">Error: ${processResult.error}</p>`;
+            }
+
+            // Hide loading image
+            loading.style.display = 'none';
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>PPTX Explainer via ChatGPT API</h1>
+        <form onsubmit="event.preventDefault(); uploadFile();">
+            <label for="file">Select File:</label>
+            <input type="file" id="file" name="file">
+            <button type="submit">Upload File</button>
+        </form>
+        <div id="uid-div"></div>
+
+        <img id="loading" src="https://cdn.dribbble.com/users/1523313/screenshots/16134521/media/3975730626bdae63cf9b25d3b634bac3.gif" alt="Loading..."> <!-- Single loading image element -->
+
+        <h1>Check File Status</h1>
+        <form onsubmit="event.preventDefault(); checkStatus();">
+            <label for="uid">Enter UID:</label>
+            <input type="text" id="uid" name="uid">
+            <button type="submit">Check Status</button>
+        </form>
+        <div id="status"></div>
+    </div>
+</body>
+</html>
